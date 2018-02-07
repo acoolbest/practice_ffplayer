@@ -133,10 +133,8 @@ int decode_thread(void *data)
 
 	//AVPacket *packet = av_packet_alloc();
 	AVPacket *packet = (AVPacket *)av_malloc(sizeof(AVPacket));
-
-	//AVPacket pkt, *packet = &pkt;
 	
-	printf("decode_thread filename %s %d\n", media->filename.c_str(), media->video->rect.x);
+	printf("decode_thread filename %s\n", media->filename.c_str());
 	while (true)
 	{
 		

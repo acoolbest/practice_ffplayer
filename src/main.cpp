@@ -47,7 +47,7 @@ static int lockmgr(void **mtx, enum AVLockOp op)
 int main(int argc, char* argv[])
 {
 	file.push_back("1.mp4");
-	file.push_back("1.flv");
+	file.push_back("rtmp://192.168.0.163/hls/test");
 	av_register_all();
 	avformat_network_init();
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER);
@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
 
 	
 	MediaState * media[2] = {nullptr};
-	for(int i=0;i<1;i++)
+	for(int i=0;i<2;i++)
 	{
 		media[i] = new MediaState(string(file[i]), i);
 		//MediaState media(filename);
@@ -98,7 +98,9 @@ int main(int argc, char* argv[])
 		switch (event.type)
 		{
 		case FF_QUIT_EVENT:
+			printf("FF_QUIT_EVENT\n");
 		case SDL_QUIT:
+			printf("SDL_QUIT\n");
 			quit = 1;
 			SDL_Quit();
 

@@ -5,8 +5,8 @@
 #include "Video.h"
 
 #define FF_REFRESH_EVENT (SDL_USEREVENT)
-#define FF_REFRESH_EVENT1 (SDL_USEREVENT+2)
-#define FF_QUIT_EVENT (SDL_USEREVENT + 1)
+#define FF_REFRESH_EVENT1 (SDL_USEREVENT+1)
+#define FF_QUIT_EVENT (SDL_USEREVENT + 2)
 
 // ÑÓ³Ùdelay msºóË¢ÐÂvideoÖ¡
 void schedule_refresh(MediaState *media, int delay);
