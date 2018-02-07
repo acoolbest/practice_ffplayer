@@ -7,8 +7,8 @@ extern "C"{
 }
 extern bool quit;
 
-MediaState::MediaState(string input_file)
-	:filename(input_file)
+MediaState::MediaState(string input_file, int index)
+	:filename(input_file),media_index(index)
 {
 	pFormatCtx = nullptr;
 	audio = new AudioState();
@@ -136,7 +136,7 @@ int decode_thread(void *data)
 
 	//AVPacket pkt, *packet = &pkt;
 	
-	printf("decode_thread filename %s %d\n", media->filename.c_str(), media->video->rect.x/800);
+	printf("decode_thread filename %s %d\n", media->filename.c_str(), media->video->rect.x);
 	while (true)
 	{
 		

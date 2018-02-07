@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
 	MediaState * media[2] = {nullptr};
 	for(int i=0;i<1;i++)
 	{
-		media[i] = new MediaState(string(file[i]));
+		media[i] = new MediaState(string(file[i]), i);
 		//MediaState media(filename);
 
 		if (media[i]->openInput())

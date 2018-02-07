@@ -25,10 +25,11 @@ public:
 	VideoState *video;
 	AVFormatContext *pFormatCtx;
 
+	int media_index;
 	string filename;
 	//bool quit;
 
-	MediaState(string filename);
+	MediaState(string filename, int index);
 
 	~MediaState();
 

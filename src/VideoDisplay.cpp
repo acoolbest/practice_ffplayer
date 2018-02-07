@@ -22,7 +22,8 @@ uint32_t sdl_refresh_timer_cb(uint32_t interval, void *opaque)
 {
 	SDL_Event event;
 	//event.type = FF_REFRESH_EVENT;
-	event.type =  ((MediaState *)opaque)->video->rect.x/800 + FF_REFRESH_EVENT;
+	event.type =  ((MediaState *)opaque)->media_index + FF_REFRESH_EVENT;
+	printf("event.type: %d\n",((MediaState *)opaque)->media_index);
 	event.user.data1 = opaque;
 	SDL_PushEvent(&event);
 	return 0; /* 0 means stop timer */
