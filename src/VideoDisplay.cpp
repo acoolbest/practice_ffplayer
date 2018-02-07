@@ -79,8 +79,9 @@ void video_refresh_timer(void *userdata)
 				video->video_ctx->height, video->displayFrame->data, video->displayFrame->linesize);
 
 			// Display the image to screen
-			SDL_UpdateTexture(video->bmp, &(video->rect), video->displayFrame->data[0], video->displayFrame->linesize[0]);
-			SDL_RenderClear(video->renderer);
+			//SDL_UpdateTexture(video->bmp, &video->rect, video->displayFrame->data[0], video->displayFrame->linesize[0]);
+			SDL_UpdateTexture(video->bmp, NULL, video->displayFrame->data[0], video->displayFrame->linesize[0]);
+			//SDL_RenderClear(video->renderer);
 			//SDL_RenderCopy(video->renderer, video->bmp, &video->rect, &video->rect);
 			SDL_RenderCopy(video->renderer, video->bmp, NULL, &video->rect);
 			SDL_RenderPresent(video->renderer);

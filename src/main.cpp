@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 
 		media[i]->audio->audio_play(); // create audio thread
 		sdl_play.rect.x = i*800;
-		sdl_play.rect.y = 0;
+		sdl_play.rect.y = i*100;
 		media[i]->video->video_play(media[i], &sdl_play); // create video thread
 	}
 	
