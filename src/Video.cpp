@@ -46,8 +46,8 @@ void VideoState::video_play(MediaState *media, SDL_Play *sdl_play)
 	window = sdl_play->window;
 	renderer = sdl_play->renderer;
 	//renderer = SDL_CreateRenderer(window, -1, 0);
-	bmp = SDL_CreateTexture(sdl_play->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING,
-		width, height);
+	bmp = SDL_CreateTexture(sdl_play->renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING,
+		width, height);//SDL_PIXELFORMAT_IYUV,SDL_PIXELFORMAT_YV12
 	rect = sdl_play->rect;
 	#if 0
 	window = SDL_CreateWindow("FFmpeg Decode", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
