@@ -7,14 +7,15 @@
 #include "FrameQueue.h"
 #include "Media.h"
 
-struct MediaState;
+class MediaState;
 /**
  * 播放音频所需的数据封装
  */
 
 
-struct VideoState
+class VideoState
 {
+public:
 	PacketQueue* videoq;        // 保存的video packet的队列缓存
 
 	int stream_index;           // index of video stream
@@ -43,7 +44,6 @@ struct VideoState
 
 	~VideoState();
 };
-
 
 int decode(void *arg); // 将packet解码，并将解码后的Frame放入FrameQueue队列中
 

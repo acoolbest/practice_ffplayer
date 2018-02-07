@@ -26,6 +26,41 @@ MediaState::~MediaState()
 		delete video;
 }
 
+static void calculate_display_rect(SDL_Rect *rect,
+                               int scr_xleft, int scr_ytop, int scr_width, int scr_height,
+                               int pic_width, int pic_height, AVRational pic_sar)
+{
+    float aspect_ratio;
+    int width, height, x, y;
+
+    if (pic_sar.num == 0)
+        aspect_ratio = 0;
+    else
+        aspect_ratio = av_q2d(pic_sar);
+
+    if (aspect_ratio <= 0.0)
+        aspect_ratio = 1.0;
+    aspect_ratio *= (float)pic_width / (float)pic_height;
+
+    /* XXX: we suppose the screen has a 1.0 pixel ratio */
+    height = scr_height;
+    width = ((int)rint(height * aspect_ratio)) & ~1;
+    if (width > scr_width) {
+        width = scr_width;
+        height = ((int)rint(width / aspect_ratio)) & ~1;
+    }
+    x = (scr_width - width) / 2;
+    y = (scr_height - height) / 2;
+    rect->x = scr_xleft + x;
+    rect->y = scr_ytop  + y;
+    rect->w = FFMAX(width,  1);
+    rect->h = FFMAX(height, 1);
+}
+
+void MediaState::set_default_window_size(int width, int height, AVRational sar)
+{
+	calculate_display_rect(&video->rect, 0, 0, INT_MAX, height, width, height, sar);
+}
 bool MediaState::openInput()
 {
 	// Open input file
@@ -44,7 +79,17 @@ bool MediaState::openInput()
 			audio->stream_index = i;
 
 		if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO && video->stream_index < 0)
+		{
 			video->stream_index = i;
+			AVStream *st = pFormatCtx->streams[i];
+	        AVCodecContext *avctx = st->codec;
+	        AVRational sar = av_guess_sample_aspect_ratio(pFormatCtx, st, NULL);
+	        if (avctx->width)
+	        {
+				set_default_window_size(avctx->width, avctx->height, sar);
+				printf("%d %d\n", avctx->width, avctx->height);
+			}
+		}
 	}
 
 	if (audio->stream_index < 0 || video->stream_index < 0)

@@ -15,7 +15,7 @@ DIR_LIB		:= $(PWD_DIR)/bin
 
 TARGET_BIN_PATH	:= $(DIR_LIB)
 																						  
-INCLUDES 	= -I${DIR_BASE}/ -I${DIR_INC}/ `pkg-config --cflags glib-2.0` -I../install/include 
+INCLUDES 	= -I${DIR_BASE}/ -I${DIR_INC}/ -I../install/include 
 OBJ_PATH	= ${DIR_OBJ}/
 
 ver = debug

@@ -14,10 +14,13 @@ extern "C" {
 
 }
 
-struct VideoState;
+class VideoState;
 
-struct MediaState
+
+class MediaState
 {
+public:
+
 	AudioState *audio;
 	VideoState *video;
 	AVFormatContext *pFormatCtx;
@@ -30,8 +33,11 @@ struct MediaState
 	~MediaState();
 
 	bool openInput();
+
+	void set_default_window_size(int width, int height, AVRational sar);
 };
 
 int decode_thread(void *data);
+
 
 #endif

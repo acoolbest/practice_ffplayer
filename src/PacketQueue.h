@@ -19,8 +19,9 @@ struct SDL_Play{
 	SDL_Rect rect;
 };
 
-struct PacketQueue
+class PacketQueue
 {
+public:
 	std::queue<AVPacket> queue;
 
 	Uint32    nb_packets;

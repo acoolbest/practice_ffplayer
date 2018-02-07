@@ -11,8 +11,10 @@ extern "C"{
 
 }
 
-struct FrameQueue
+class FrameQueue
 {
+public:
+
 	static const int capacity = 30;
 
 	std::queue<AVFrame*> queue;

@@ -13,8 +13,9 @@ extern "C"{
 /**
  * 播放audio时所需要的数据封装
  */
-struct AudioState
+class AudioState
 {
+public:
 	const uint32_t BUFFER_SIZE;// 缓冲区的大小
 
 	PacketQueue audioq;
