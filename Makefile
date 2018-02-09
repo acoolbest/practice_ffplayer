@@ -28,7 +28,7 @@ endif
 ARFLAGS 	= -rc
 
 #-ldl
-LDFLAGS 	= -L$(DIR_LIB) -L../install/lib -lavfilter -lswresample -lavcodec -lswscale -lavdevice -lavformat -lavutil -lSDL2 -lpthread -lm 
+LDFLAGS 	= -L$(DIR_LIB) -L../install/lib -lavfilter -lswresample -lavcodec -lswscale -lavformat -lavutil -lSDL2 -lpthread -lm 
 
 ALL_SRC		= $(wildcard ${DIR_SRC}/*.cpp)
 ALL_OBJ		= $(patsubst %.cpp, %.o, $(notdir ${ALL_SRC}))

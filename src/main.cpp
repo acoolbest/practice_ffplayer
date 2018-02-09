@@ -13,7 +13,9 @@ extern "C" {
 #include <iostream>
 #include <string>
 #include <vector>
-
+#include <thread>
+#include <pthread.h>
+#include <unistd.h>
 
 #include "PacketQueue.h"
 #include "Audio.h"
@@ -21,10 +23,12 @@ extern "C" {
 #include "VideoDisplay.h"
 using namespace std;
 
+//#define PTHREAD_FRESH
+
 bool quit = false;
 
 vector<string> file;
-
+SDL_Rect rect[3] = {{0,0},{900,100},{0,500}};
 static int lockmgr(void **mtx, enum AVLockOp op)
 {
    switch(op) {
@@ -47,14 +51,15 @@ static int lockmgr(void **mtx, enum AVLockOp op)
 int main(int argc, char* argv[])
 {
 	file.push_back("1.mp4");
-	file.push_back("rtmp://192.168.0.163/hls/test");
+	//file.push_back("rtmp://192.168.0.163/hls/test");
+	//file.push_back("1.flv");
 	av_register_all();
 	avformat_network_init();
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER);
 	
 	SDL_Play sdl_play = {0};
 	sdl_play.window = SDL_CreateWindow("FFmpeg Decode", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		1800, 600, SDL_WINDOW_OPENGL);
+		1920, 1080, SDL_WINDOW_OPENGL);
 	sdl_play.renderer = SDL_CreateRenderer(sdl_play.window, -1, 0);
 
 	if (av_lockmgr_register(lockmgr)) {
@@ -62,10 +67,10 @@ int main(int argc, char* argv[])
         exit(0);
     }
 
-
+	pthread_t ntid;
 	
-	MediaState * media[2] = {nullptr};
-	for(int i=0;i<2;i++)
+	MediaState * media[3] = {nullptr};
+	for(int i=0;i<file.size();i++)
 	{
 		media[i] = new MediaState(string(file[i]), i);
 		//MediaState media(filename);
@@ -74,9 +79,12 @@ int main(int argc, char* argv[])
 			SDL_CreateThread(decode_thread, "", media[i]); // 创建解码线程，读取packet到队列中缓存
 
 		media[i]->audio->audio_play(); // create audio thread
-		sdl_play.rect.x = i*800;
-		sdl_play.rect.y = i*100;
+		sdl_play.rect.x = rect[i].x;
+		sdl_play.rect.y = rect[i].y;
 		media[i]->video->video_play(media[i], &sdl_play); // create video thread
+		//std::thread(video_refresh_timer, media[i]).detach();
+		//pthread_create(&ntid, NULL, video_refresh_timer, media[i]);
+		//pthread_detach(ntid);
 	}
 	
 
@@ -89,12 +97,32 @@ int main(int argc, char* argv[])
 
 	cout << "audio时长：" << audio_duration << endl;
 	cout << "video时长：" << video_duration << endl;
-	#endif
-	
+	#endif		
+
 	SDL_Event event;
+	
 	while (true) // SDL event loop
 	{
 		SDL_WaitEvent(&event);
+		#if 0
+		if(event.type == FF_QUIT_EVENT)
+		{
+			printf("FF_QUIT_EVENT");
+			break;
+		}
+		else if(event.type == SDL_QUIT)
+		{
+			printf("SDL_QUITn");
+			quit = 1;
+			break;
+		}
+		else if(event.type == file.size() + FF_REFRESH_EVENT)
+		{
+			//video_refresh_timer(media);
+			std::thread (video_refresh_timer,media[event.type-FF_REFRESH_EVENT]).detach();
+			continue;
+		}
+		#else
 		switch (event.type)
 		{
 		case FF_QUIT_EVENT:
@@ -103,23 +131,52 @@ int main(int argc, char* argv[])
 			printf("SDL_QUIT\n");
 			quit = 1;
 			SDL_Quit();
-
 			return 0;
-			break;
-
 		case FF_REFRESH_EVENT:
+			#if 0
+			SDL_CondSignal(media[0]->cond);
+			#else
+			#ifdef PTHREAD_FRESH
+			pthread_create(&ntid, NULL, video_refresh_timer, media[0]);
+			pthread_detach(ntid);
+			//usleep(20*1000);
+			#else
+			//std::thread (video_refresh_timer,media[0]).detach();
 			video_refresh_timer(media[0]);
-			//printf("1\n");
+			#endif
+			#endif
 			break;
 		case FF_REFRESH_EVENT1:
+			SDL_CondSignal(media[1]->cond);
+			
+			#ifdef PTHREAD_FRESH
+			pthread_create(&ntid, NULL, video_refresh_timer, media[1]);
+			pthread_detach(ntid);
+			usleep(20*1000);
+			#else
+			//std::thread (video_refresh_timer,media[1]).detach();
 			video_refresh_timer(media[1]);
-			//printf("2\n");
+			#endif
+			
+			break;
+		case FF_REFRESH_EVENT2:
+			SDL_CondSignal(media[2]->cond);
+			
+			#ifdef PTHREAD_FRESH
+			pthread_create(&ntid, NULL, video_refresh_timer, media[2]);
+			pthread_detach(ntid);
+			usleep(20*1000);
+			#else
+			//std::thread (video_refresh_timer,media[2]).detach();
+			video_refresh_timer(media[2]);
+			#endif
+			
 			break;
 		default:
 			break;
 		}
+		#endif
 	}
-
 	getchar();
 	return 0;
 }

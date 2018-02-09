@@ -11,6 +11,9 @@ MediaState::MediaState(string input_file, int index)
 	:filename(input_file),media_index(index)
 {
 	pFormatCtx = nullptr;
+	mutex = SDL_CreateMutex();
+	cond = SDL_CreateCond();
+	
 	audio = new AudioState();
 
 	video = new VideoState();

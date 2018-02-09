@@ -28,7 +28,8 @@ public:
 	int media_index;
 	string filename;
 	//bool quit;
-
+	SDL_mutex *mutex;
+	SDL_cond  *cond;
 	MediaState(string filename, int index);
 
 	~MediaState();
@@ -36,6 +37,8 @@ public:
 	bool openInput();
 
 	void set_default_window_size(int width, int height, AVRational sar);
+	
+	
 };
 
 int decode_thread(void *data);
