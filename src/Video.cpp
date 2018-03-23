@@ -5,10 +5,11 @@
 extern "C"{
 
 #include <libswscale/swscale.h>
+#include <libavutil/time.h>
 
 }
 
-VideoState::VideoState()
+VideoState::VideoState(bool live)
 {
 	video_ctx        = nullptr;
 	stream_index     = -1;
@@ -27,6 +28,8 @@ VideoState::VideoState()
 	frame_last_delay = 0.0;
 	frame_last_pts   = 0.0;
 	video_clock      = 0.0;
+	live_stream 	 = live;
+	speed 			 = 1.0;
 }
 
 VideoState::~VideoState()
@@ -77,7 +80,7 @@ void VideoState::video_play(MediaState *media, SDL_Play *sdl_play)
 
 	avpicture_fill((AVPicture*)displayFrame, buffer, (AVPixelFormat)displayFrame->format, displayFrame->width, displayFrame->height);
 
-	SDL_CreateThread(decode, "", this);
+	SDL_CreateThread(decode_video, "", this);
 
 	schedule_refresh(media, 40); // start display
 }
@@ -92,6 +95,7 @@ double VideoState::synchronize(AVFrame *srcFrame, double pts)
 		pts = video_clock; // Don't get pts,set it to video clock
 
 	frame_delay = av_q2d(stream->codec->time_base);
+	//extra_delay = repeat_pict / (2*fps)
 	frame_delay += srcFrame->repeat_pict * (frame_delay * 0.5);
 
 	video_clock += frame_delay;
@@ -100,7 +104,7 @@ double VideoState::synchronize(AVFrame *srcFrame, double pts)
 }
 
 
-int  decode(void *arg)
+int  decode_video(void *arg)
 {
 	VideoState *video = (VideoState*)arg;
 
@@ -109,7 +113,7 @@ int  decode(void *arg)
 	AVPacket packet;
 	double pts;
 	int got_frame = 0;
-	
+	static int count = 0;
 	while (true)
 	{
 		video->videoq->deQueue(&packet, true);
@@ -135,11 +139,30 @@ int  decode(void *arg)
 
 		frame->opaque = &pts;
 
+		if (video->frameq.nb_frames >= 1)
+			SDL_Delay(20);
+		#if 0
 		if (video->frameq.nb_frames >= FrameQueue::capacity)
-			SDL_Delay(500 * 2);
-
+			SDL_Delay(500*2);
+		#endif
+		#if 0
+		if (video->frameq.nb_frames >= FrameQueue::capacity)
+		{
+			if(video->live_stream)
+			{
+				video->speed = 2.0;
+			}
+			else
+				SDL_Delay(500 * 2);
+		}
+		else if (video->frameq.nb_frames < FrameQueue::capacity/3)
+		{
+			video->speed = 1.0;
+		}
+		#endif
+		printf("external_clock: %f, put frame cout %d\n", av_gettime() / 1000000.0, count++);
 		video->frameq.enQueue(frame);
-
+		
 		av_frame_unref(frame);
 	}
 

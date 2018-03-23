@@ -17,7 +17,7 @@ static SDL_mutex *gmutex = SDL_CreateMutex();;
 // 延迟delay ms后刷新video帧
 void schedule_refresh(MediaState *media, int delay)
 {
-	SDL_AddTimer(delay, sdl_refresh_timer_cb, media);
+	SDL_AddTimer(delay/media->video->speed, sdl_refresh_timer_cb, media);
 }
 
 uint32_t sdl_refresh_timer_cb(uint32_t interval, void *opaque)
@@ -25,7 +25,7 @@ uint32_t sdl_refresh_timer_cb(uint32_t interval, void *opaque)
 	SDL_Event event;
 	//event.type = FF_REFRESH_EVENT;
 	event.type =  ((MediaState *)opaque)->media_index + FF_REFRESH_EVENT;
-	printf("event.type: %d\n",((MediaState *)opaque)->media_index);
+	//printf("event.type: %d\n",((MediaState *)opaque)->media_index);
 	event.user.data1 = opaque;
 	SDL_PushEvent(&event);
 	return 0; /* 0 means stop timer */
@@ -35,7 +35,10 @@ void *video_refresh_timer(void *userdata)
 {
 	MediaState *media = (MediaState*)userdata;
 	VideoState *video = media->video;
+	//media->audio->speed = media->video->speed;// sync speed;
+	static int count = 0;
 	SDL_LockMutex(media->mutex);
+	static int count1 = 0;
 	while (true)
 	{
 		//SDL_CondWait(media->cond, media->mutex);
@@ -46,18 +49,20 @@ void *video_refresh_timer(void *userdata)
 
 		if (video->stream_index >= 0)
 		{
-			if (video->videoq->queue.empty())
+			if (video->videoq->queue.empty() && !video->frameq.nb_frames)
 			{
-				schedule_refresh(media, 1);
-				printf("meida[%s] sleep 1 ms\n", media->filename.c_str());
+				//video->frameq.enQueue();
+				schedule_refresh(media, 10);
+				//printf("meida[%s] sleep 1 ms\n", media->filename.c_str());
 			}
 			else
 			{
+				printf("external_clock: %f, get frame cout %d\n", av_gettime() / 1000000.0, count1++);
 				video->frameq.deQueue(&video->frame);
-
+				#if 0
 				// 将视频同步到音频上，计算下一帧的延迟时间
 				double current_pts = *(double*)video->frame->opaque;
-				double delay = current_pts - video->frame_last_pts;
+				double delay = (current_pts - video->frame_last_pts)*2/3;
 				if (delay <= 0 || delay >= 1.0)
 					delay = video->frame_last_delay;
 
@@ -78,13 +83,18 @@ void *video_refresh_timer(void *userdata)
 					else if (diff >= threshold) // 快了，加倍delay
 						delay *= 2;
 				}
+				
+				printf("external_clock: %f, diff[%f] threshold[%f] current_pts[%f] ref_clock[%f], last_pts[%f] delay[%f]ms, count: %d\n", av_gettime() / 1000000.0, diff*1000, threshold*1000, current_pts, ref_clock, video->frame_last_pts, delay*1000, count++);
 				video->frame_timer += delay;
 				double actual_delay = video->frame_timer - static_cast<double>(av_gettime()) / 1000000.0;
-				if (actual_delay <= 0.010)
+				if (actual_delay <= 0.010) 
 					actual_delay = 0.010; 
-
+				
 				schedule_refresh(media, static_cast<int>(actual_delay * 1000 + 0.5));
-				printf("meida[%s] sleep %d ms\n", media->filename.c_str(), static_cast<int>(actual_delay * 1000 + 0.5));
+				//printf("meida[%s] sleep %d ms\n", media->filename.c_str(), static_cast<int>(actual_delay * 1000 + 0.5));
+				#else
+				schedule_refresh(media, 12);
+				#endif
 				
 				SwsContext *sws_ctx = sws_getContext(video->video_ctx->width, video->video_ctx->height, video->video_ctx->pix_fmt,
 				video->displayFrame->width,video->displayFrame->height,(AVPixelFormat)video->displayFrame->format, SWS_BILINEAR, nullptr, nullptr, nullptr);

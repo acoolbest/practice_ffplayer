@@ -13,10 +13,13 @@ MediaState::MediaState(string input_file, int index)
 	pFormatCtx = nullptr;
 	mutex = SDL_CreateMutex();
 	cond = SDL_CreateCond();
-	
-	audio = new AudioState();
 
-	video = new VideoState();
+	live_stream = (input_file.find("rtmp") != std::string::npos || input_file.find("udp") != std::string::npos) ? true : false;
+	//live_stream = (input_file.find("rtmp") != std::string::npos || input_file.find("udp") != std::string::npos) ? false : true;
+
+	audio = new AudioState(live_stream);
+
+	video = new VideoState(live_stream);
 	//quit = false;
 }
 

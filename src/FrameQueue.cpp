@@ -1,6 +1,10 @@
 
 #include "FrameQueue.h"
+extern "C"{
 
+#include <libavutil/time.h>
+
+}
 FrameQueue::FrameQueue()
 {
 	nb_frames = 0;
@@ -23,7 +27,7 @@ bool FrameQueue::enQueue(const AVFrame* frame)
 	queue.push(p);
 
 	nb_frames++;
-	
+	//printf("external_clock: %f, push frame nb_frames %d\n", av_gettime() / 1000000.0, nb_frames);
 	SDL_CondSignal(cond);
 	SDL_UnlockMutex(mutex);
 	
@@ -51,13 +55,14 @@ bool FrameQueue::deQueue(AVFrame **frame)
 			av_frame_free(&tmp);
 
 			nb_frames--;
-
+			//printf("external_clock: %f, pop frame nb_frames %d\n", av_gettime() / 1000000.0, nb_frames);
 			ret = true;
 			break;
 		}
 		else
 		{
 			SDL_CondWait(cond, mutex);
+			//printf("[wait SDL_CondWait]external_clock: %f, pop frame nb_frames %d\n", av_gettime() / 1000000.0, nb_frames);
 		}
 	}
 

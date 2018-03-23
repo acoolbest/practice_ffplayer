@@ -39,13 +39,17 @@ public:
 	void video_play(MediaState *media, SDL_Play *sdl_play);
 
 	double synchronize(AVFrame *srcFrame, double pts);
+
+	bool live_stream;
+
+	double speed;
 	
-	VideoState();
+	VideoState(bool live);
 
 	~VideoState();
 };
 
-int decode(void *arg); // 将packet解码，并将解码后的Frame放入FrameQueue队列中
+int decode_video(void *arg); // 将packet解码，并将解码后的Frame放入FrameQueue队列中
 
 
 #endif

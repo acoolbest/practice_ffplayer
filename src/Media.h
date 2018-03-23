@@ -30,6 +30,9 @@ public:
 	//bool quit;
 	SDL_mutex *mutex;
 	SDL_cond  *cond;
+
+	bool live_stream;
+	
 	MediaState(string filename, int index);
 
 	~MediaState();

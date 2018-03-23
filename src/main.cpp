@@ -51,7 +51,7 @@ static int lockmgr(void **mtx, enum AVLockOp op)
 int main(int argc, char* argv[])
 {
 	file.push_back("1.mp4");
-	//file.push_back("rtmp://192.168.0.163/hls/test");
+	//file.push_back("rtmp://192.168.0.163/hls/test129");
 	//file.push_back("1.flv");
 	av_register_all();
 	avformat_network_init();
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
 	
 	SDL_Play sdl_play = {0};
 	sdl_play.window = SDL_CreateWindow("FFmpeg Decode", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		1920, 1080, SDL_WINDOW_OPENGL);
+		1280, 720, SDL_WINDOW_OPENGL);
 	sdl_play.renderer = SDL_CreateRenderer(sdl_play.window, -1, 0);
 
 	if (av_lockmgr_register(lockmgr)) {
