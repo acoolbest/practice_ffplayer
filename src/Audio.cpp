@@ -15,7 +15,7 @@ extern bool quit;
 #define SOUND_TOUCH
 
 AudioState::AudioState(bool live)
-	:BUFFER_SIZE(192000*16)
+	:BUFFER_SIZE(192000)
 {
 	audio_ctx = nullptr;
 	stream_index = -1;
@@ -179,13 +179,15 @@ int AudioState::sound_touch_recv(uint8_t *audio_buf, int samples_number, int cha
 		audio_buf[i*2+1] = uint8_t(touch_buffer_recv[i]>>8);
 	}
 	
-	//printf("external_clock: %f, pcm_size: %d, count: %d\n", av_gettime() / 1000000.0, length, count++);
+	//printf("external_clock: %f, length: %d, count: %d\n", av_gettime() / 1000000.0, length, count++);
 	return length;
 }
 
 
 void AudioState::sound_touch_put(uint8_t *audio_buf, int data_size, int nb)
 {
+	if(speed == 1.0)
+		return;
 	for (auto i = 0; i < data_size; i++)
 	{
 		touch_buffer_put[i] = (audio_buf[i * 2] | (audio_buf[i * 2 + 1] << 8));
@@ -274,7 +276,8 @@ int deQueue_sample(AudioState *audio, uint8_t *audio_buf, int buf_size)
 {
 	int ret = -1;
 	AudioSample *sample = nullptr;
-	
+	static int count = 0;
+	int data_size = 0;
 	if (audio->stream_index >= 0)
 	{
 		if (audio->sampleq.queue.empty())
@@ -289,11 +292,21 @@ int deQueue_sample(AudioState *audio, uint8_t *audio_buf, int buf_size)
 				if(sample->raw_size && sample->channels && sample->samples_number)
 				{
 					//printf("sample->raw_size: %d\n", sample->raw_size);
-					int data_size = audio->sound_touch_recv(audio_buf, int((double)sample->samples_number/audio->speed), sample->channels);
+					if(audio->speed == 1.0)
+					{
+						memcpy(audio_buf, sample->audio_buf, sample->raw_size);
+						data_size = sample->raw_size;
+						printf("memcpy sample->raw_size: %d\n", sample->raw_size);
+					}
+					else
+					{
+						data_size = audio->sound_touch_recv(audio_buf, int((double)sample->samples_number/audio->speed), sample->channels);
+					}
+					
 					audio->audio_clock += static_cast<double>(data_size) / (2 * audio->stream->codec->channels * audio->stream->codec->sample_rate);
 					ret = data_size;
 				}
-				//printf("raw_size %d\n", sample->raw_size);
+				printf("external_clock: %f, output_size %d, nb %d, count %d\n", av_gettime() / 1000000.0, data_size, data_size/(sample->channels*av_get_bytes_per_sample(AV_SAMPLE_FMT_S16)), count++);
 				delete sample;
 				sample = nullptr;
 			}
@@ -319,7 +332,9 @@ int  decode_audio(void *arg)
 	AudioSample *sample = nullptr;
 	uint8_t *audio_buf = new uint8_t[192000];
 	int raw_size = 0;
-
+	
+	int bytes_per_sec = audio->stream->codec->sample_rate * audio->audio_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16);
+	
 	static int count = 0;
 	while (!quit)
 	{
@@ -366,16 +381,18 @@ int  decode_audio(void *arg)
 		int nb = swr_convert(swr_ctx, &audio_buf, static_cast<int>(dst_nb_samples), (const uint8_t**)frame->data, frame->nb_samples);
 
 		int raw_size = frame->channels * nb * av_get_bytes_per_sample(dst_format);
-		//printf("input size %d, count: %d\n", raw_size, count++);
+		printf("external_clock: %f, input size %d, nb %d, count: %d\n", av_gettime() / 1000000.0, raw_size, nb, count++);
 		audio->sound_touch_put(audio_buf, raw_size, nb);
-		#if 0
-		if (audio->sampleq.nb_frames >= SampleQueue::capacity) SDL_Delay(500);
-		else if(audio->sampleq.nb_frames >= SampleQueue::capacity/2) SDL_Delay(250);
-		else SDL_Delay(5);
-		#endif
-		if(audio->sampleq.nb_frames >= 3) SDL_Delay(10);
+
+		if(audio->sampleq.nb_frames >= 3)
+		{
+			//printf("delay %d, raw_size %d, bytes_per_sec %d, audio->speed %f\n", int(1000*raw_size/bytes_per_sec/audio->speed), raw_size, bytes_per_sec, audio->speed);
+			SDL_Delay(int(1000*raw_size/bytes_per_sec/audio->speed));
+		}
 		
 		sample = new AudioSample(raw_size, frame->channels, nb);
+		if(audio->speed == 1.0)
+			memcpy(sample->audio_buf, audio_buf, raw_size);
 		audio->sampleq.enQueue(sample);
 		
 		av_frame_free(&frame);

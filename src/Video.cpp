@@ -160,7 +160,7 @@ int  decode_video(void *arg)
 			video->speed = 1.0;
 		}
 		#endif
-		printf("external_clock: %f, put frame cout %d\n", av_gettime() / 1000000.0, count++);
+		//printf("external_clock: %f, put frame cout %d\n", av_gettime() / 1000000.0, count++);
 		video->frameq.enQueue(frame);
 		
 		av_frame_unref(frame);

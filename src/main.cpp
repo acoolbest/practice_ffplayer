@@ -50,9 +50,9 @@ static int lockmgr(void **mtx, enum AVLockOp op)
 
 int main(int argc, char* argv[])
 {
-	file.push_back("1.mp4");
+	//file.push_back("1.mp4");
 	//file.push_back("rtmp://192.168.0.163/hls/test129");
-	//file.push_back("1.flv");
+	file.push_back("1.flv");
 	av_register_all();
 	avformat_network_init();
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER);

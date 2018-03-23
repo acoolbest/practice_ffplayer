@@ -20,23 +20,19 @@ public:
 	int raw_size;
 	int channels;
 	int samples_number;
-	int pcm_size;
 	uint8_t *audio_buf;
 	AudioSample(){ raw_size = 0; channels = 0; samples_number = 0;}
-	AudioSample(int raw, int ch, int nb){  raw_size = raw; channels = ch; samples_number = nb, pcm_size = 0; audio_buf = new uint8_t[192000]; }
+	AudioSample(int raw, int ch, int nb){  raw_size = raw; channels = ch; samples_number = nb, audio_buf = new uint8_t[192000]; }
 	~AudioSample(){ if (audio_buf) delete[] audio_buf; }
 };
 
 class SampleQueue
 {
 public:
-
-	static const int capacity = 30;// 实际每秒20，最大30是用来给管道提前输入数据的
-
 	std::queue<AudioSample*> queue;
 
 	uint32_t nb_frames;
-
+	uint32_t nb_samples;
 	SDL_mutex* mutex;
 	SDL_cond * cond;
 
@@ -52,6 +48,7 @@ public:
 		SDL_LockMutex(mutex);
 		queue.push(sample);
 		nb_frames++;
+		nb_samples+=sample->samples_number;
 		SDL_CondSignal(cond);
 		SDL_UnlockMutex(mutex);
 		return true;
@@ -69,6 +66,7 @@ public:
 				*sample = queue.front();
 				queue.pop();
 				nb_frames--;
+				nb_samples-=(*sample)->samples_number;
 				ret = true;
 				break;
 			}

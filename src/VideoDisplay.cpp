@@ -57,7 +57,7 @@ void *video_refresh_timer(void *userdata)
 			}
 			else
 			{
-				printf("external_clock: %f, get frame cout %d\n", av_gettime() / 1000000.0, count1++);
+				//printf("external_clock: %f, get frame cout %d\n", av_gettime() / 1000000.0, count1++);
 				video->frameq.deQueue(&video->frame);
 				#if 0
 				// 将视频同步到音频上，计算下一帧的延迟时间
