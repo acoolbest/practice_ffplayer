@@ -21,24 +21,24 @@ AudioState::AudioState(bool live)
 	stream_index = -1;
 	stream = nullptr;
 	audio_clock = 0;
-
 	audio_buff = new uint8_t[BUFFER_SIZE];
 	audio_buff_size = 0;
 	audio_buff_index = 0;
 	live_stream = live;
-	speed = 1.9;
-
+	speed = 1.0;
+	old_speed = 1.0;
 	s_touch.setSampleRate(44100); // 设置采样率
 	s_touch.setChannels(2); // 设置通道数
 
 	////////////////////////////////////////////
 	// 设置 rate或者pitch的改变参数
-	s_touch.setRate(speed); // 设置速度为0.5，原始的为1.0
+	s_touch.setRate(1.0); // 设置速度为0.5，原始的为1.0
 	//s_touch.setRateChange(-50.0);
 	//s_touch.setPitch(0.1);
 	s_touch.setSetting(SETTING_USE_QUICKSEEK, 1); 
 	s_touch.setSetting(SETTING_USE_AA_FILTER, 1);
 	mutex     = SDL_CreateMutex();
+	cond      = SDL_CreateCond();
 }
 
 AudioState::AudioState(AVCodecContext *audioCtx, int index)
@@ -52,6 +52,7 @@ AudioState::AudioState(AVCodecContext *audioCtx, int index)
 	audio_buff_size = 0;
 	audio_buff_index = 0;
 	mutex     = SDL_CreateMutex();
+	cond      = SDL_CreateCond();
 }
 
 AudioState::~AudioState()
@@ -87,7 +88,7 @@ double AudioState::get_audio_clock()
 	int hw_buf_size = audio_buff_size - audio_buff_index;
 	int bytes_per_sec = stream->codec->sample_rate * audio_ctx->channels * 2;
 
-	double pts = audio_clock - static_cast<double>(hw_buf_size) / bytes_per_sec;
+	double pts = audio_clock - static_cast<double>(hw_buf_size*speed) / bytes_per_sec;
 
 	
 	return pts;
@@ -102,6 +103,7 @@ void audio_callback(void* userdata, Uint8 *stream, int len)
 
 	SDL_memset(stream, 0, len);
 
+	static int count = 0;
 	int audio_size = 0;
 	int len1 = 0;
 	while (len > 0)// 向设备发送长度为len的数据
@@ -162,39 +164,101 @@ receiveSamples(SAMPLETYPE *output, uint maxSamples) 输出处理后的数据，需要循环执
 flush() 冲出处理管道中的最后一组“残留”的数据，应在最后执行
 */
 
+int AudioState::sound_touch_flush(uint8_t *audio_buf, int channels)
+{
+	if(old_speed == speed)
+	{
+		auto ret = sound_touch_recv(audio_buf, 1024/old_speed, channels);
+		if(ret > 0)
+			printf("flush %d\n", ret);
+		return ret;
+	}
+
+	uint8_t *p = audio_buf;
+	int nb = 0;
+	int length = 0;
+	int data_size = 0;
+	int samples_number = 1024;
+	SDL_LockMutex(mutex);
+	do
+	{
+		nb = s_touch.receiveSamples(touch_buffer_recv, samples_number);
+		length = nb * channels * av_get_bytes_per_sample(dst_format);
+		for (auto i = 0; i < length/2; i++)
+		{
+			*p++ = uint8_t(touch_buffer_recv[i]);
+			*p++ = uint8_t(touch_buffer_recv[i]>>8);
+		}
+		data_size += length;
+	} while (nb != 0);
+	audio_clock += static_cast<double>(data_size)*old_speed / (2 * stream->codec->channels * stream->codec->sample_rate);
+	#if 0
+	s_touch.flush();
+	do
+	{
+		nb = s_touch.receiveSamples(touch_buffer_recv, samples_number);
+		length = nb * channels * av_get_bytes_per_sample(dst_format);
+		for (auto i = 0; i < length/2; i++)
+		{
+			*p++ = uint8_t(touch_buffer_recv[i]);
+			*p++ = uint8_t(touch_buffer_recv[i]>>8);
+		}
+		data_size += length;
+	} while (nb != 0);
+
+	//audio_clock += static_cast<double>(data_size)*old_speed / (2 * stream->codec->channels * stream->codec->sample_rate);
+	#endif
+	old_speed = speed;
+	s_touch.setRate(old_speed);
+	SDL_CondSignal(cond);
+	printf("[FLUSH END] flush %d, %f, %f\n",data_size, old_speed, audio_clock);
+	SDL_UnlockMutex(mutex);
+	return -1;//丢掉刷新出的数据，否则声音嘈杂
+}
+
 int AudioState::sound_touch_recv(uint8_t *audio_buf, int samples_number, int channels)
 {
 	static int count = 0;
-	auto len = channels * samples_number * av_get_bytes_per_sample(dst_format);
-	
+
 	SDL_LockMutex(mutex);
-	auto nb = s_touch.receiveSamples(touch_buffer_recv, samples_number);
+	int nb = s_touch.receiveSamples(touch_buffer_recv, samples_number);
+	int length = nb * channels * av_get_bytes_per_sample(dst_format);
+	audio_clock += static_cast<double>(length)*old_speed / (2 * stream->codec->channels * stream->codec->sample_rate);
+
+	//printf("[sound_touch_recv] [old_speed %f speed %f] external_clock: %f, output_size %d, nb %d, audio_clock %f, count %d\n", old_speed, speed, av_gettime() / 1000000.0, length, length/(audio_ctx->channels*av_get_bytes_per_sample(AV_SAMPLE_FMT_S16)), audio_clock, count++);
+
 	SDL_UnlockMutex(mutex);
-	
-	auto length = nb * channels * av_get_bytes_per_sample(dst_format);
 	
 	for (auto i = 0; i < length/2; i++)
 	{
 		audio_buf[i*2] = uint8_t(touch_buffer_recv[i]);
 		audio_buf[i*2+1] = uint8_t(touch_buffer_recv[i]>>8);
 	}
-	
-	//printf("external_clock: %f, length: %d, count: %d\n", av_gettime() / 1000000.0, length, count++);
-	return length;
+	return length > 0 ? length : -1;
 }
-
 
 void AudioState::sound_touch_put(uint8_t *audio_buf, int data_size, int nb)
 {
-	if(speed == 1.0)
-		return;
 	for (auto i = 0; i < data_size; i++)
 	{
 		touch_buffer_put[i] = (audio_buf[i * 2] | (audio_buf[i * 2 + 1] << 8));
 	}
-	
+
 	SDL_LockMutex(mutex);
-	s_touch.putSamples(touch_buffer_put, nb);
+	while (true)
+	{
+		if(old_speed == speed)
+		{
+			s_touch.putSamples(touch_buffer_put, nb);
+			break;
+		}
+		else
+		{
+			printf("[WAIT START]sound_touch_put %f\n",audio_clock);
+			SDL_CondWait(cond, mutex);
+			printf("[WAIT END]sound_touch_put %f\n", audio_clock);
+		}
+	}
 	SDL_UnlockMutex(mutex);
 }
 
@@ -275,38 +339,26 @@ _AUDIO_DECODE_END_:
 int deQueue_sample(AudioState *audio, uint8_t *audio_buf, int buf_size)
 {
 	int ret = -1;
-	AudioSample *sample = nullptr;
+	static AudioSample *sample = nullptr;
 	static int count = 0;
-	int data_size = 0;
+
 	if (audio->stream_index >= 0)
 	{
 		if (audio->sampleq.queue.empty())
 		{
-			return -1;
+			ret = audio->sound_touch_flush(audio_buf, audio->audio_ctx->channels);
 		}
 		else
 		{
-			audio->sampleq.deQueue(&sample);
+			if(sample == nullptr)
+				audio->sampleq.deQueue(&sample);
 			if(sample)
 			{
 				if(sample->raw_size && sample->channels && sample->samples_number)
 				{
-					//printf("sample->raw_size: %d\n", sample->raw_size);
-					if(audio->speed == 1.0)
-					{
-						memcpy(audio_buf, sample->audio_buf, sample->raw_size);
-						data_size = sample->raw_size;
-						printf("memcpy sample->raw_size: %d\n", sample->raw_size);
-					}
-					else
-					{
-						data_size = audio->sound_touch_recv(audio_buf, int((double)sample->samples_number/audio->speed), sample->channels);
-					}
-					
-					audio->audio_clock += static_cast<double>(data_size) / (2 * audio->stream->codec->channels * audio->stream->codec->sample_rate);
-					ret = data_size;
+					ret = audio->sound_touch_recv(audio_buf, int((double)sample->samples_number/audio->old_speed), sample->channels);
+					//if(ret < 0) return ret;
 				}
-				printf("external_clock: %f, output_size %d, nb %d, count %d\n", av_gettime() / 1000000.0, data_size, data_size/(sample->channels*av_get_bytes_per_sample(AV_SAMPLE_FMT_S16)), count++);
 				delete sample;
 				sample = nullptr;
 			}
@@ -336,13 +388,18 @@ int  decode_audio(void *arg)
 	int bytes_per_sec = audio->stream->codec->sample_rate * audio->audio_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16);
 	
 	static int count = 0;
+	
 	while (!quit)
 	{
 		frame = av_frame_alloc();
 		audio->audioq.deQueue(&packet, true);
 		if (packet.pts != AV_NOPTS_VALUE)
 		{
-			audio->audio_clock = av_q2d(audio->stream->time_base) * packet.pts;
+			if(audio->audio_clock <= 0)
+			{
+				audio->audio_clock = av_q2d(audio->stream->time_base) * packet.pts;
+				//printf("audio_clock %f\n", audio->audio_clock);
+			}
 		}
 
 		int ret = avcodec_decode_audio4(audio->audio_ctx, frame, &got_frame, &packet);
@@ -381,18 +438,18 @@ int  decode_audio(void *arg)
 		int nb = swr_convert(swr_ctx, &audio_buf, static_cast<int>(dst_nb_samples), (const uint8_t**)frame->data, frame->nb_samples);
 
 		int raw_size = frame->channels * nb * av_get_bytes_per_sample(dst_format);
-		printf("external_clock: %f, input size %d, nb %d, count: %d\n", av_gettime() / 1000000.0, raw_size, nb, count++);
-		audio->sound_touch_put(audio_buf, raw_size, nb);
 
-		if(audio->sampleq.nb_frames >= 3)
+		if(audio->sampleq.nb_frames >= 5)
 		{
-			//printf("delay %d, raw_size %d, bytes_per_sec %d, audio->speed %f\n", int(1000*raw_size/bytes_per_sec/audio->speed), raw_size, bytes_per_sec, audio->speed);
-			SDL_Delay(int(1000*raw_size/bytes_per_sec/audio->speed));
+			SDL_Delay(int(1000*raw_size/bytes_per_sec/audio->old_speed));
 		}
 		
 		sample = new AudioSample(raw_size, frame->channels, nb);
-		if(audio->speed == 1.0)
-			memcpy(sample->audio_buf, audio_buf, raw_size);
+		
+		audio->sound_touch_put(audio_buf, raw_size, nb);
+		
+		//printf("external_clock: %f, input_size %d, nb %d, count: %d\n", av_gettime() / 1000000.0, sample->raw_size, nb, count++);
+
 		audio->sampleq.enQueue(sample);
 		
 		av_frame_free(&frame);

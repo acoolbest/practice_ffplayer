@@ -14,8 +14,8 @@ MediaState::MediaState(string input_file, int index)
 	mutex = SDL_CreateMutex();
 	cond = SDL_CreateCond();
 
-	live_stream = (input_file.find("rtmp") != std::string::npos || input_file.find("udp") != std::string::npos) ? true : false;
-	//live_stream = (input_file.find("rtmp") != std::string::npos || input_file.find("udp") != std::string::npos) ? false : true;
+	//live_stream = (input_file.find("rtmp") != std::string::npos || input_file.find("udp") != std::string::npos) ? true : false;
+	live_stream = (input_file.find("rtmp") != std::string::npos || input_file.find("udp") != std::string::npos) ? false : true;
 
 	audio = new AudioState(live_stream);
 
@@ -67,6 +67,7 @@ void MediaState::set_default_window_size(int width, int height, AVRational sar)
 {
 	calculate_display_rect(&video->rect, 0, 0, INT_MAX, height, width, height, sar);
 }
+
 bool MediaState::openInput()
 {
 	// Open input file
@@ -95,6 +96,9 @@ bool MediaState::openInput()
 				set_default_window_size(avctx->width, avctx->height, sar);
 				printf("%d %d\n", avctx->width, avctx->height);
 			}
+			if(st->avg_frame_rate.den && st->avg_frame_rate.num)
+				video->fps= lrintf(av_q2d(st->avg_frame_rate));
+			printf("video->fps: %d\n", video->fps);
 		}
 	}
 

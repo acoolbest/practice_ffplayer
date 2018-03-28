@@ -43,6 +43,8 @@ public:
 	bool live_stream;
 
 	double speed;
+
+	uint64_t fps;
 	
 	VideoState(bool live);
 

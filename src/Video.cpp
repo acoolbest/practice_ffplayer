@@ -30,6 +30,7 @@ VideoState::VideoState(bool live)
 	video_clock      = 0.0;
 	live_stream 	 = live;
 	speed 			 = 1.0;
+	fps				 = 85;//一般而言，大脑处理视频的极限是每秒85帧
 }
 
 VideoState::~VideoState()
@@ -114,6 +115,7 @@ int  decode_video(void *arg)
 	double pts;
 	int got_frame = 0;
 	static int count = 0;
+	int delay_time = 0;
 	while (true)
 	{
 		video->videoq->deQueue(&packet, true);
@@ -138,28 +140,39 @@ int  decode_video(void *arg)
 		pts = video->synchronize(frame, pts);
 
 		frame->opaque = &pts;
-
-		if (video->frameq.nb_frames >= 1)
-			SDL_Delay(20);
-		#if 0
-		if (video->frameq.nb_frames >= FrameQueue::capacity)
-			SDL_Delay(500*2);
-		#endif
-		#if 0
-		if (video->frameq.nb_frames >= FrameQueue::capacity)
+		
+		if(video->live_stream)
 		{
-			if(video->live_stream)
+			if (video->frameq.nb_frames >= video->fps/3)
 			{
-				video->speed = 2.0;
+				delay_time = 1000/video->fps-10;
+				video->speed = 1.4;
+				//printf("video->speed = 1.1\n");
+			}
+			else if(video->frameq.nb_frames >= 1)
+			{
+				delay_time = 1000/video->fps-5;
+				//printf("video->frameq.nb_frames >= 1\n");
 			}
 			else
-				SDL_Delay(500 * 2);
+			{
+				delay_time = 0;
+				video->speed = 0.8;
+				//printf("video->speed = 1.0\n");
+			}
 		}
-		else if (video->frameq.nb_frames < FrameQueue::capacity/3)
+		else
 		{
 			video->speed = 1.0;
+			if (video->frameq.nb_frames >= 1)
+				delay_time = 1000/video->fps-5;
+			else
+				delay_time = 0;
 		}
-		#endif
+		
+		if(delay_time)
+			SDL_Delay(delay_time);
+		
 		//printf("external_clock: %f, put frame cout %d\n", av_gettime() / 1000000.0, count++);
 		video->frameq.enQueue(frame);
 		

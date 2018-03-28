@@ -50,9 +50,9 @@ static int lockmgr(void **mtx, enum AVLockOp op)
 
 int main(int argc, char* argv[])
 {
-	//file.push_back("1.mp4");
+	file.push_back("1.mp4");
 	//file.push_back("rtmp://192.168.0.163/hls/test129");
-	file.push_back("1.flv");
+	//file.push_back("1.flv");
 	av_register_all();
 	avformat_network_init();
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER);
@@ -171,6 +171,27 @@ int main(int argc, char* argv[])
 			video_refresh_timer(media[2]);
 			#endif
 			
+			break;
+		case SDL_KEYDOWN:
+			switch (event.key.keysym.sym) {
+				case SDLK_LEFT:
+					if(media[0]->audio->speed == media[0]->audio->old_speed && media[0]->audio->speed >= 0.8)
+						media[0]->audio->speed -= 0.1;
+					break;
+				case SDLK_RIGHT:
+					if(media[0]->audio->speed == media[0]->audio->old_speed && media[0]->audio->speed <= 1.4)
+						media[0]->audio->speed += 0.1;
+					break;
+				case SDLK_UP:
+					if(media[0]->audio->speed == media[0]->audio->old_speed && media[0]->audio->speed <= 1.3)
+						media[0]->audio->speed +=0.2;
+					break;
+				case SDLK_DOWN:
+					if(media[0]->audio->speed == media[0]->audio->old_speed && media[0]->audio->speed >= 0.9)
+						media[0]->audio->speed -=0.2;
+					break;
+			}
+			printf("speed %f\n", media[0]->audio->speed);
 			break;
 		default:
 			break;

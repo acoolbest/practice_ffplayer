@@ -88,7 +88,6 @@ public:
 	const uint32_t BUFFER_SIZE;// 缓冲区的大小
 
 	PacketQueue audioq;
-
 	double audio_clock; // audio clock
 	AVStream *stream; // audio stream
 
@@ -103,10 +102,13 @@ public:
 
 	bool live_stream;
 	double speed;
+	double old_speed;
+
 	soundtouch::SoundTouch s_touch;
 	soundtouch::SAMPLETYPE touch_buffer_put[96000];
 	soundtouch::SAMPLETYPE touch_buffer_recv[96000];
 	SDL_mutex* mutex;
+	SDL_cond * cond;
 	
 	AudioState(bool live);              //默认构造函数
 	AudioState(AVCodecContext *audio_ctx, int audio_stream);
@@ -121,6 +123,7 @@ public:
 	// get audio clock
 	double get_audio_clock();
 
+	int sound_touch_flush(uint8_t *audio_buf, int channels);
 	int sound_touch_recv(uint8_t *audio_buf, int len, int channels);
 	void sound_touch_put(uint8_t *audio_buf, int data_size, int nb);
 };
